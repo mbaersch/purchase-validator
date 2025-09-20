@@ -159,38 +159,39 @@ if (!purchaseEvent) {
       if (ecommerce.items.length == 0)
         messages.push("empty items");
       else ecommerce.items.forEach(function(item, idx) {
+        var itemRef = item.item_id || item.item_name || "n/a"; 
         if (!item.item_id && !item.item_name) {
           messages.push("no item_id or item_name");
         }
         chType = getTypeInfo(item.quantity);
         if (chType === "undefined") {
           if (doWarn && !didQtyW) {
-            warnings.push("no item quantity");
+            warnings.push("no item quantity ("+itemRef+")");
             didQtyW = true;
           }
         } else if (chType !== "number") {
           if (doWarn && !didQtyW) {
-            warnings.push("item quantity not numeric");
+            warnings.push("quantity not numeric ("+itemRef+")");
             didQtyW = true;
           }
           if (!isValidFloat(item.quantity)) { 
-            if (!didQtyE) messages.push("item quantity incorrect string");      
+            if (!didQtyE) messages.push("quantity incorrect string ("+itemRef+")");      
             didQtyE = true;
           }
         }
         chType = getTypeInfo(item.price);
         if (chType === "undefined") {
           if (doWarn && !didPrcW) {
-            warnings.push("no item price");
+            warnings.push("no price ("+itemRef+")");
             didPrcW = true;
           }
         } else if (chType !== "number") {
           if (doWarn && !didPrcW) {
-            warnings.push("item price not numeric");
+            warnings.push("price not numeric ("+itemRef+")");
             didPrcW = true;
           }
           if (!isValidFloat(item.price)) { 
-            if (!didPrcE) messages.push("item price incorrect string");      
+            if (!didPrcE) messages.push("price incorrect string ("+itemRef+")");      
             didPrcE = true;
           }
         }

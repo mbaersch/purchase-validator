@@ -1,2 +1,139 @@
-# purchase-validator
+# Purchase Validator 
+
+**Custom Tag Template for Google Tag Manager**
+
 Validates last purchase event and pushes results to dataLayer (Custom Tag Template for Google Tag Manager)
+
+---
+
+## Usage 
+
+### Trigger
+Create a new tag using this template (install manually as long as it is not part of the gallery) and fire it on your success page, using a trigger that depends on the unique URL or any other event that occurs on that page only, without using the `purchase` event. When checkig the URL, use something like "page loaded" instead of "page view" or other early events to make sure, the purchase is already present in the dataLayer when the tag executes. 
+
+## Options
+There are only a few options to set:
+
+- **"Value required"**: Check if a purchase without a value should raise an error. A value of 0 will still be accepted. If a value is present, the tag checks for `currency` having a value, too. 
+
+- **"Activate Warnings"**: If warnings are active, the result will contain info about missing recommended fields like price or quanitity and inform about wrong value types (string instead of integer / number).
+
+- **"Log Result To Console"**: explains itself. 
+
+## Size check
+You can optionally define a size limit for the ecommerce object. Even if this does not reflect actual GA4 request payload size, you can use this option if you suspect problems caused by large payloads (e. g. from custom product dimension values).
+
+## Using Results
+When the tag fires, it looks for the most recent `purchase` event in the dataLayer and inspects it. If no event can be found, the result will include an error. 
+
+If there is a `purchase`, the `ecommerce` object will be checked for several things: 
+
+- a transaction_id must be present and have a value other than empty string, null or undefined (or "null" / "undefined" as a string)
+- a value must be present, if the option is checked
+- if a value is found, it has to be either a number or a string that can be parsed to a number
+- if a value is found, a currency must be present and set with a value
+- items array must be present and not empty
+- items must have at least an item_id or item_name
+- if there is a quantity, it must be a valid number or string, that can be parsed to a number
+- if there is a price, it must be a valid number or string, that can be parsed to a number
+- if a size limit is defined and the stringified ecommerce object exceeds this size, an error will be added to the result    
+- if there is no price or quantity or the format is not numeric, a warning will occur (if warnings are activated). 
+
+## Output Format
+After the tag is done, the results get pushed to the dataLayer, along with a `purchase_validation` event. The push includes a `check_results` object. This object has a readable `result_type` that you can use to compose an event name. 
+
+The `transaction_id` will be added for reference (if there is one, otherwise *<NONE* will be the value here).
+
+Number of errors and (if activated) warnings are also part of this object. If you want to transport the details as custom parameters for your result event (if you send one to Analytics or any other direction), there are `errorText` and `warningText` keys in the object, containing readable error messages (comma separated). 
+
+### Possible error messages
+- no purchase event
+- no ecommerce object
+- no transaction_id
+- no value
+- no currency
+- value incorrect string
+- no items
+- empty items
+- no item_id or item_name
+- quantity incorrect string (ref)
+- price incorrect string (ref)
+
+### Possible Warnings
+- value not numeric
+- no quantity (ref)
+- quantity not numeric (ref)
+- no price (ref)
+- price not numeric (ref)
+
+**Note**: item related warnings and errors occur only once, even if detected several times. Otherwise the text attributes would get too big to transport most of the times. The "ref" in brackets will include the item_id or item_name as reference.     
+
+**Examples**:
+
+```
+//several problems
+{
+  event: "purchase_validation",
+  check_results: {
+    result_type: "error",
+    transaction_id: "<NONE>",
+    errors: 2,
+    errorText: "no transaction_id, quantity incorrect string (SKU_12345)",
+    warnings: 3,
+    warningText: "value not numeric, quantity not numeric (SKU_12345), no price (SKU_12345)"
+  }
+}
+
+//problems with items
+{
+  event: "purchase_validation",
+  check_results: {
+    result_type: "error",
+    transaction_id: "T_ERR0101",
+    errors: 1,
+    errorText: "quantity incorrect string (SKU_12345)",
+    warnings: 2,
+    warningText: "quantity not numeric (SKU_12345), no price (SKU_12345)"
+  }
+}
+
+//warnings, but no error
+{
+  event: "purchase_validation",
+  check_results: {
+    result_type: "warning",
+    transaction_id: "T_566789",
+    errors: 0,
+    errorText: "",
+    warnings: 1,
+    warningText: "quantity not numeric (SKU_XY)"
+  }
+}
+
+//all good:
+{
+  event: "purchase_validation",
+  check_results: {
+    result_type: "success",
+    transaction_id: "T_OKAY1",
+    errors: 0,
+    errorText: "",
+    warnings: 0,
+    warningText: ""
+  }
+}
+
+//no purchase found:
+{
+  event: "purchase_validation",
+  check_results: {
+    result_type: "error",
+    transaction_id: "<NONE>",
+    errors: 1,
+    errorText: "no purchase event",
+    warnings: 0,
+    warningText: ""
+  }
+}
+
+```

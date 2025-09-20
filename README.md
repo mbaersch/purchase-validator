@@ -12,9 +12,17 @@ Validates last purchase event and pushes results to dataLayer (Custom Tag Templa
 Create a new tag using this template (install manually as long as it is not part of the gallery) and fire it on your success page, using a trigger that depends on the unique URL or any other event that occurs on that page only, without using the `purchase` event. When checkig the URL, use something like "page loaded" instead of "page view" or other early events to make sure, the purchase is already present in the dataLayer when the tag executes. 
 
 ## Options
-There are only a few options to set:
+There are some options to define the scope for validation:
 
 - **"Value required"**: Check if a purchase without a value should raise an error. A value of 0 will still be accepted. If a value is present, the tag checks for `currency` having a value, too. 
+
+- **"Tax / shipping required"**: Check if a purchase without a tax / shipping value should raise an error. A value of 0 will still be accepted. 
+
+- **"Require item_id AND item_name "**: Items require either an item_id or item_name. Check this option if items with only one of them should raise an error. Will only be raised once for the first matching item, ignoring additional incomplete following items.
+
+- **"Count Items"**: Adds the number of items to the result push
+
+- **"Count Item Dimensions"**: If activated, the result will contain the total count of dimensions for all items + min and max count in a single item-
 
 - **"Activate Warnings"**: If warnings are active, the result will contain info about missing recommended fields like price or quanitity and inform about wrong value types (string instead of integer / number).
 
@@ -31,6 +39,7 @@ If there is a `purchase`, the `ecommerce` object will be checked for several thi
 - a transaction_id must be present and have a value other than empty string, null or undefined (or "null" / "undefined" as a string)
 - a value must be present, if the option is checked
 - if a value is found, it has to be either a number or a string that can be parsed to a number
+- if a tax and / or shippig value is required, an error occurs if not present or invalid. If a value is found, it has to be either a number or a string that can be parsed to a number and will be checked in any case (even if option is not checked)
 - if a value is found, a currency must be present and set with a value
 - items array must be present and not empty
 - items must have at least an item_id or item_name
@@ -50,17 +59,18 @@ Number of errors and (if activated) warnings are also part of this object. If yo
 - no purchase event
 - no ecommerce object
 - no transaction_id
-- no value
+- no value / tax / shipping
 - no currency
-- value incorrect string
+- value / tax / shipping incorrect format
 - no items
 - empty items
 - no item_id or item_name
+- no item_id / no item_name (if both keys are required for every item)
 - quantity incorrect string (ref)
 - price incorrect string (ref)
 
 ### Possible Warnings
-- value not numeric
+- value / tax / shipping not numeric
 - no quantity (ref)
 - quantity not numeric (ref)
 - no price (ref)
@@ -71,69 +81,68 @@ Number of errors and (if activated) warnings are also part of this object. If yo
 **Examples**:
 
 ```
-//several problems
-{
-  event: "purchase_validation",
-  check_results: {
-    result_type: "error",
-    transaction_id: "<NONE>",
-    errors: 2,
-    errorText: "no transaction_id, quantity incorrect string (SKU_12345)",
-    warnings: 3,
-    warningText: "value not numeric, quantity not numeric (SKU_12345), no price (SKU_12345)"
-  }
+//multiple problems
+check_results: {
+  result_type: "error",
+  transaction_id: "<NONE>",
+  errors: 2,
+  errorText: "no transaction_id, quantity incorrect string (SKU_12345)",
+  warnings: 3,
+  warningText: "value not numeric, quantity not numeric (SKU_12345), no price (SKU_12345)"
 }
 
 //problems with items
-{
-  event: "purchase_validation",
-  check_results: {
-    result_type: "error",
-    transaction_id: "T_ERR0101",
-    errors: 1,
-    errorText: "quantity incorrect string (SKU_12345)",
-    warnings: 2,
-    warningText: "quantity not numeric (SKU_12345), no price (SKU_12345)"
-  }
+check_results: {
+  result_type: "error",
+  transaction_id: "T_ERR0101",
+  errors: 1,
+  errorText: "quantity incorrect string (SKU_12345)",
+  warnings: 2,
+  warningText: "quantity not numeric (SKU_12345), no price (SKU_12345)"
 }
 
 //warnings, but no error
-{
-  event: "purchase_validation",
-  check_results: {
-    result_type: "warning",
-    transaction_id: "T_566789",
-    errors: 0,
-    errorText: "",
-    warnings: 1,
-    warningText: "quantity not numeric (SKU_XY)"
-  }
+check_results: {
+  result_type: "warning",
+  transaction_id: "T_566789",
+  errors: 0,
+  errorText: "",
+  warnings: 1,
+  warningText: "quantity not numeric (SKU_XY)"
 }
 
 //all good:
-{
-  event: "purchase_validation",
-  check_results: {
-    result_type: "success",
-    transaction_id: "T_OKAY1",
-    errors: 0,
-    errorText: "",
-    warnings: 0,
-    warningText: ""
-  }
+check_results: {
+  result_type: "success",
+  transaction_id: "T_OKAY1",
+  errors: 0,
+  errorText: "",
+  warnings: 0,
+  warningText: ""
 }
 
 //no purchase found:
-{
-  event: "purchase_validation",
-  check_results: {
-    result_type: "error",
-    transaction_id: "<NONE>",
-    errors: 1,
-    errorText: "no purchase event",
-    warnings: 0,
-    warningText: ""
-  }
+check_results: {
+  result_type: "error",
+  transaction_id: "<NONE>",
+  errors: 1,
+  errorText: "no purchase event",
+  warnings: 0,
+  warningText: ""
+}
+
+//example result with item activated stats
+check_results: {
+  result_type: "error",
+  transaction_id: "T_23456",
+  errors: 2,
+  errorText: "no tax, no item_name",
+  warnings: 1,
+  warningText: "shipping not numeric",
+  item_count: 2,
+  item_dims_min: 18,
+  item_dims_max: 19,
+  item_dims_sum: 37
 }
 
 ```

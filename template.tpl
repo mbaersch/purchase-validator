@@ -48,6 +48,46 @@ ___TEMPLATE_PARAMETERS___
       },
       {
         "type": "CHECKBOX",
+        "name": "forceTax",
+        "checkboxText": "Tax required",
+        "simpleValueType": true,
+        "help": "Check if a purchase without a valid tax key should raise an error (a value of 0 will still be accepted).",
+        "defaultValue": false
+      },
+      {
+        "type": "CHECKBOX",
+        "name": "forceShipping",
+        "checkboxText": "Shipping required",
+        "simpleValueType": true,
+        "help": "Check if a purchase without a valid shipping key should raise an error (a value of 0 will still be accepted).",
+        "defaultValue": false
+      },
+      {
+        "type": "CHECKBOX",
+        "name": "forceItemNameID",
+        "checkboxText": "Require item_id AND item_name",
+        "simpleValueType": true,
+        "help": "Items require either an item_id or item_name. Check this option if items with only one of them should raise an error. Will only be raised once for the first matching item, ignoring additional incomplete following items",
+        "defaultValue": false
+      },
+      {
+        "type": "CHECKBOX",
+        "name": "countItems",
+        "checkboxText": "Count Items",
+        "simpleValueType": true,
+        "help": "Adds the number of items to the result push",
+        "defaultValue": true
+      },
+      {
+        "type": "CHECKBOX",
+        "name": "countDimensions",
+        "checkboxText": "Count Item Dimensions",
+        "simpleValueType": true,
+        "help": "If activated, the result will contain the total count of dimensions for all items + min and max count in a single item",
+        "defaultValue": true
+      },
+      {
+        "type": "CHECKBOX",
         "name": "doWarnings",
         "checkboxText": "Activate Warnings",
         "simpleValueType": true,
@@ -90,6 +130,8 @@ ___TEMPLATE_PARAMETERS___
 ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 
 const getType = require("getType");
+const Math = require("Math");
+const Object = require("Object");
 const makeNumber = require("makeNumber");
 const makeString = require("makeString");
 const JSON = require('JSON');
@@ -97,8 +139,14 @@ const dlcopy = require('copyFromWindow')('dataLayer'), doWarn = data.doWarnings;
 
 var messages = [], warnings = [],
     purchaseEvent = null,
+    countItems = 0,
+    sumDimItems = 0,
+    minDimItems = 0,
+    maxDimItems = 0,
     trans_id = "<NONE>",
     chType,
+    didNameE = false,
+    didIdE = false,
     didQtyW = false, didQtyE = false, 
     didPrcW = false, didPrcE = false;
 
@@ -123,6 +171,15 @@ const getTypeInfo = function(x){
   return tp;
 };
 
+const checkCurrencyField = function(name, val, required) {
+  let chType = getTypeInfo(val);
+  if (chType === "undefined") {
+    if (required) messages.push("no "+name);
+  } else if (chType !== "number") {
+    if (doWarn) warnings.push(name+" not numeric");
+    if (!isValidFloat(val)) messages.push(name+" incorrect format");      
+  }
+};
 
 //find (last) purchase event
 for (var i = dlcopy.length - 1; i >= 0; i--) {
@@ -143,26 +200,34 @@ if (!purchaseEvent) {
   } else {
     if (!ecommerce.transaction_id) messages.push("no transaction_id");
     else trans_id = ecommerce.transaction_id;
-    chType = getTypeInfo(ecommerce.value);
-    if (chType === "undefined") {
-      if (data.forceValue) messages.push("no value");
-    } else if (chType !== "number") {
-      if (!ecommerce.currency) messages.push("no currency");
-      if (doWarn) warnings.push("value not numeric");
-      if (!isValidFloat(ecommerce.value)) messages.push("value incorrect string");      
-    }
+    checkCurrencyField("value", ecommerce.value, data.forceValue);
+    if (getTypeInfo(ecommerce.value) === "undefined" && (!ecommerce.currency)) 
+      messages.push("no currency");
+    checkCurrencyField("tax", ecommerce.tax, data.forceTax);
+    checkCurrencyField("shipping", ecommerce.shipping, data.forceShipping);
+
+    //check items 
     if (getType(ecommerce.items) != "array") {
       messages.push("no items");
     } else {
-
-      // check items
-      if (ecommerce.items.length == 0)
+      countItems = ecommerce.items.length;
+      if (countItems == 0)
         messages.push("empty items");
       else ecommerce.items.forEach(function(item, idx) {
+        if (data.countDimensions) { 
+          var dimCount = Object.keys(item).length;
+          sumDimItems += dimCount;
+          if (minDimItems == 0) minDimItems = dimCount;  
+          minDimItems = Math.min(minDimItems, dimCount);
+          maxDimItems = Math.max(maxDimItems, dimCount);
+        }
         var itemRef = item.item_id || item.item_name || "n/a"; 
         if (!item.item_id && !item.item_name) {
           messages.push("no item_id or item_name");
-        }
+        } else if (data.forceItemNameID) {
+          if (!didNameE && !item.item_name) {messages.push("no item_name"); didNameE = true;}
+          if (!didIdE && !item.item_id) {messages.push("no item id"); didIdE = true;}
+        }  
         chType = getTypeInfo(item.quantity);
         if (chType === "undefined") {
           if (doWarn && !didQtyW) {
@@ -218,9 +283,19 @@ var resultObj = {
     errorText: messages ? messages.join(", ") : ""
   }
 };
+
 if (doWarn) {
   resultObj.check_results.warnings = warnings.length;
   resultObj.check_results.warningText = warnings ? warnings.join(", ") : "";
+}
+
+if (data.countItems)  
+  resultObj.check_results.item_count = countItems;
+
+if (data.countDimensions) { 
+  resultObj.check_results.item_dims_min = minDimItems;
+  resultObj.check_results.item_dims_max = maxDimItems;
+  resultObj.check_results.item_dims_sum = sumDimItems;
 }
 
 if (data.informConsole) require("logToConsole")("Purchase validation results", resultObj);
@@ -307,6 +382,9 @@ ___WEB_PERMISSIONS___
           }
         }
       ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
     },
     "isRequired": true
   }

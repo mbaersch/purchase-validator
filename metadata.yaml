@@ -1,5 +1,5 @@
 homepage: "https://www.markus-baersch.de"
 documentation: "https://github.com/mbaersch/purchase-validator#readme"
 versions:
-  - sha: xxx
+  - sha: 7aa30ae80902644a471ad1b756ada36ada6c0d41
     changeNotes: initial release.

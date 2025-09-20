@@ -14,7 +14,7 @@ Create a new tag using this template (install manually as long as it is not part
 #### Block Page Reload
 Whether you block a purchase from being sent on a page reload or not (GA is quite good at deduplication; at least within the same session), you should block the validator tag in order to avoid *"no purchase event"* errors on reloaded OSPs that do not contain a purchase event anymore (which would be the desirable behaviour). 
 
-This can be achieved by adding a variable for `window.performance.navigation.type` and check if the value equals *1* in a blocking trigger. 
+This can be achieved by adding a regular *JavaScript Variable* (not *Custom JavaScript*) for `window.performance.navigation.type` and check if the value equals *1* in a blocking trigger for the purchase validator tag. 
 
 <img width="489" height="444" alt="image" src="https://github.com/user-attachments/assets/9d9655b0-b54a-476f-9fe4-75f106b873a5" />
 

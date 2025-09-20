@@ -11,6 +11,13 @@ Validates last purchase event and pushes results to dataLayer (Custom Tag Templa
 ### Trigger
 Create a new tag using this template (install manually as long as it is not part of the gallery) and fire it on your success page, using a trigger that depends on the unique URL or any other event that occurs on that page only, without using the `purchase` event. When checkig the URL, use something like "page loaded" instead of "page view" or other early events to make sure, the purchase is already present in the dataLayer when the tag executes. 
 
+#### Block Page Reload
+Whether you block a purchase from being sent on a page reload or not (GA is quite good at deduplication; at least within the same session), you should block the validator tag in order to avoid *"no purchase event"* errors on reloaded OSPs that do not contain a purchase event anymore (which would be the desirable behaviour). 
+
+This can be achieved by adding a variable for `window.performance.navigation.type` and check if the value equals *1* in a blocking trigger. 
+
+<img width="489" height="444" alt="image" src="https://github.com/user-attachments/assets/9d9655b0-b54a-476f-9fe4-75f106b873a5" />
+
 ## Options
 There are some options to define the scope for validation:
 
